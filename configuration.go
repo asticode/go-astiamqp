@@ -39,7 +39,7 @@ func FlagConfig() Configuration {
 
 // ConfigurationExchange represents an exchange configuration
 type ConfigurationExchange struct {
-	Arguments   amqp.Table
+	Arguments   Table
 	AutoDeleted bool
 	Durable     bool
 	Internal    bool
@@ -51,9 +51,12 @@ type ConfigurationExchange struct {
 // ExchangeType represents an exchange type
 type ExchangeType string
 
+// Table wraps amqp.Table
+type Table amqp.Table
+
 // ConfigurationQueue represents a queue configuration
 type ConfigurationQueue struct {
-	Arguments   amqp.Table
+	Arguments   Table
 	AutoDeleted bool
 	Durable     bool
 	Exclusive   bool
@@ -63,7 +66,7 @@ type ConfigurationQueue struct {
 
 // ConfigurationConsumer represents a consumer configuration
 type ConfigurationConsumer struct {
-	Arguments  amqp.Table
+	Arguments  Table
 	AutoAck    bool
 	Exchange   ConfigurationExchange
 	Exclusive  bool

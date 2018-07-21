@@ -117,11 +117,11 @@ func (a *AMQP) consume(c *Consumer) (deliveries <-chan amqp.Delivery, err error)
 	if deliveries, err = a.channel.Consume(
 		c.configuration.Queue.Name, // queue
 		c.tag, // consumer
-		c.configuration.AutoAck,   // auto-ack
-		c.configuration.Exclusive, // exclusive
-		c.configuration.NoLocal,   // no-local
-		c.configuration.NoWait,    // no-wait
-		c.configuration.Arguments, // args
+		c.configuration.AutoAck,               // auto-ack
+		c.configuration.Exclusive,             // exclusive
+		c.configuration.NoLocal,               // no-local
+		c.configuration.NoWait,                // no-wait
+		amqp.Table(c.configuration.Arguments), // args
 	); err != nil {
 		err = errors.Wrapf(err, "astiamqp: consuming on consumer %+v failed", c.configuration)
 		return

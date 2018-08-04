@@ -13,7 +13,7 @@ defer a.Close()
 a.Init(context.Background())
 
 // Add producer
-p, _ := w.a.AddProducer(astiamqp.ConfigurationProducer{
+p, _ := a.AddProducer(astiamqp.ConfigurationProducer{
     Exchange: astiamqp.ConfigurationExchange{
         Durable: true,
         Name:    "my-exchange",

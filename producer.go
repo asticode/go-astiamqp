@@ -4,16 +4,14 @@ import (
 	"encoding/json"
 
 	"github.com/asticode/go-astilog"
-	"github.com/rs/xlog"
-	"github.com/streadway/amqp"
 	"github.com/pkg/errors"
+	"github.com/streadway/amqp"
 )
 
 // Producer represents a producer
 type Producer struct {
-	channel       *amqp.Channel
+	channel       func() *amqp.Channel
 	configuration ConfigurationProducer
-	logger        xlog.Logger
 }
 
 // AddProducer adds a producer
@@ -24,7 +22,7 @@ func (a *AMQP) AddProducer(c ConfigurationProducer) (p *Producer, err error) {
 
 	// Create producer
 	p = &Producer{
-		channel:       a.channel,
+		channel:       func() *amqp.Channel { return a.channel },
 		configuration: c,
 	}
 
@@ -67,7 +65,7 @@ func (p *Producer) Produce(msg interface{}, routingKey string) (err error) {
 
 func (p *Producer) publishMessage(msg []byte, routingKey string) (err error) {
 	astilog.Debugf("astiamqp: publishing msg %s to exchange %s for routing key %s", msg, p.configuration.Exchange.Name, routingKey)
-	if err = p.channel.Publish(
+	if err = p.channel().Publish(
 		p.configuration.Exchange.Name, // exchange
 		routingKey,                    // routing key
 		false,                         // mandatory

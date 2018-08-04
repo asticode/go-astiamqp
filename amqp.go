@@ -20,32 +20,28 @@ const (
 
 // AMQP represents a client capable of sending/listening to AMQP queues
 type AMQP struct {
-	addr           string
-	cancel         context.CancelFunc
-	ctx            context.Context
-	channel        *amqp.Channel
-	connection     *amqp.Connection
-	consumerId     int
-	consumers      []*Consumer
-	mc, mp         *sync.Mutex
-	oc, os         *sync.Once
-	password       string
-	producers      []*Producer
-	username       string
-	wg             *sync.WaitGroup
+	c          Configuration
+	cancel     context.CancelFunc
+	ctx        context.Context
+	channel    *amqp.Channel
+	connection *amqp.Connection
+	consumerId int
+	consumers  []*Consumer
+	mc, mp     *sync.Mutex
+	oc, os     *sync.Once
+	producers  []*Producer
+	wg         *sync.WaitGroup
 }
 
 // New creates a new AMQP instance based on a configuration
 func New(c Configuration) (a *AMQP) {
 	a = &AMQP{
-		addr:           c.Addr,
-		mc:             &sync.Mutex{},
-		mp:             &sync.Mutex{},
-		oc:             &sync.Once{},
-		os:             &sync.Once{},
-		password:       c.Password,
-		username:       c.Username,
-		wg:             &sync.WaitGroup{},
+		c:        c,
+		mc:       &sync.Mutex{},
+		mp:       &sync.Mutex{},
+		oc:       &sync.Once{},
+		os:       &sync.Once{},
+		wg:       &sync.WaitGroup{},
 	}
 	return
 }
@@ -138,15 +134,46 @@ func (a *AMQP) connect() (err error) {
 		}
 
 		// Dial
-		if a.connection, err = amqp.Dial(fmt.Sprintf("amqp://%s:%s@%s", a.username, a.password, a.addr)); err != nil {
-			astilog.Error(errors.Wrapf(err, "astiamqp: dialing AMQP server %s failed", a.addr))
+		astilog.Debugf("astiamqp: dialing AMQP server %s", a.c.Addr)
+		if a.connection, err = amqp.Dial(fmt.Sprintf("amqp://%s:%s@%s", a.c.Username, a.c.Password, a.c.Addr)); err != nil {
+			astilog.Error(errors.Wrapf(err, "astiamqp: dialing AMQP server %s failed", a.c.Addr))
 			continue
 		}
 
 		// Retrieve channel
+		astilog.Debug("astiamqp: retrieving AMQP channel")
 		if a.channel, err = a.connection.Channel(); err != nil {
+			// Close connection
+			astilog.Debug("astiamqp: closing connection")
+			if err = a.connection.Close(); err != nil {
+				astilog.Error(errors.Wrap(err, "astiamqp: closing connection failed"))
+			}
+
+			// Log
 			astilog.Error(errors.Wrap(err, "astiamqp: retrieving AMQP channel failed"))
 			continue
+		}
+
+		// QOS
+		if a.c.QOS != nil {
+			astilog.Debugf("astiamqp: setting channel qos to %+v", *a.c.QOS)
+			if err = a.channel.Qos(a.c.QOS.PrefetchCount, a.c.QOS.PrefetchSize, a.c.QOS.Global); err != nil {
+				// Close channel
+				astilog.Debug("astiamqp: closing channel")
+				if err = a.channel.Close(); err != nil {
+					astilog.Error(errors.Wrap(err, "astiamqp: closing channel failed"))
+				}
+
+				// Close connection
+				astilog.Debug("astiamqp: closing connection")
+				if err = a.connection.Close(); err != nil {
+					astilog.Error(errors.Wrap(err, "astiamqp: closing connection failed"))
+				}
+
+				// Log
+				astilog.Error(errors.Wrapf(err, "astiamqp: setting channel qos to %+v failed", *a.c.QOS))
+				continue
+			}
 		}
 		return
 	}

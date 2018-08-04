@@ -23,9 +23,17 @@ var (
 
 // Configuration represents the AMQP configuration
 type Configuration struct {
-	Addr     string `toml:"addr"`
-	Password string `toml:"password"`
-	Username string `toml:"username"`
+	Addr     string            `toml:"addr"`
+	Password string            `toml:"password"`
+	QOS      *ConfigurationQOS `toml:"qos"`
+	Username string            `toml:"username"`
+}
+
+// ConfigurationQOS represents the AMQP QOS configuration
+type ConfigurationQOS struct {
+	Global        bool `toml:"global"`
+	PrefetchCount int  `toml:"prefetch_count"`
+	PrefetchSize  int  `toml:"prefetch_size"`
 }
 
 // FlagConfig returns an AMQP config based on flags

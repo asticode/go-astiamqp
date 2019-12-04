@@ -27,10 +27,10 @@ func (a *AMQP) AddConsumer(c ConfigurationConsumer) (err error) {
 	defer a.mc.Unlock()
 
 	// Create consumer
-	a.consumerId++
+	a.consumerID++
 	var csm = &Consumer{
 		configuration: c,
-		tag:           strconv.Itoa(a.consumerId),
+		tag:           strconv.Itoa(a.consumerID),
 		wg:            &sync.WaitGroup{},
 	}
 	csm.ctx, csm.cancel = context.WithCancel(a.ctx)
@@ -115,8 +115,8 @@ func (a *AMQP) setupConsumer(c *Consumer) (err error) {
 func (a *AMQP) consume(c *Consumer) (deliveries <-chan amqp.Delivery, err error) {
 	astilog.Debugf("astiamqp: consuming on queue %s with consumer %s", c.configuration.Queue.Name, c.tag)
 	if deliveries, err = a.channel.Consume(
-		c.configuration.Queue.Name, // queue
-		c.tag, // consumer
+		c.configuration.Queue.Name,            // queue
+		c.tag,                                 // consumer
 		c.configuration.AutoAck,               // auto-ack
 		c.configuration.Exclusive,             // exclusive
 		c.configuration.NoLocal,               // no-local

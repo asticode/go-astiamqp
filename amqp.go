@@ -24,7 +24,7 @@ type AMQP struct {
 	ctx        context.Context
 	channel    *amqp.Channel
 	connection *amqp.Connection
-	consumerId int
+	consumerID int
 	consumers  []*Consumer
 	mc, mp     *sync.Mutex
 	oc, os     *sync.Once

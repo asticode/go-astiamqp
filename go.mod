@@ -1,9 +1,10 @@
 module github.com/asticode/go-astiamqp
 
+go 1.13
+
 require (
-	github.com/asticode/go-astilog v1.0.0
-	github.com/asticode/go-astitools v1.0.0
-	github.com/pkg/errors v0.8.0
-	github.com/streadway/amqp v0.0.0-20181205114330-a314942b2fd9
-	golang.org/x/sys v0.0.0-20181217223516-dcdaa6325bcb // indirect
+	github.com/asticode/go-astilog v1.2.0
+	github.com/asticode/go-astitools v1.2.1
+	github.com/pkg/errors v0.8.1
+	github.com/streadway/amqp v0.0.0-20190827072141-edfb9018d271
 )

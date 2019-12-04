@@ -3,12 +3,11 @@ package astiamqp
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
-	"sync"
-
 	"github.com/asticode/go-astilog"
-	"github.com/asticode/go-astitools/time"
+	astitime "github.com/asticode/go-astitools/time"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 )
@@ -36,12 +35,12 @@ type AMQP struct {
 // New creates a new AMQP instance based on a configuration
 func New(c Configuration) (a *AMQP) {
 	a = &AMQP{
-		c:        c,
-		mc:       &sync.Mutex{},
-		mp:       &sync.Mutex{},
-		oc:       &sync.Once{},
-		os:       &sync.Once{},
-		wg:       &sync.WaitGroup{},
+		c:  c,
+		mc: &sync.Mutex{},
+		mp: &sync.Mutex{},
+		oc: &sync.Once{},
+		os: &sync.Once{},
+		wg: &sync.WaitGroup{},
 	}
 	return
 }

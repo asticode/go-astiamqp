@@ -2,9 +2,11 @@ package astiamqp
 
 import (
 	"context"
+	"math"
 	"strconv"
 	"sync"
 
+	"github.com/asticode/go-astikit"
 	"github.com/asticode/go-astilog"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
@@ -126,5 +128,40 @@ func (a *AMQP) consume(c *Consumer) (deliveries <-chan amqp.Delivery, err error)
 		err = errors.Wrapf(err, "astiamqp: consuming on consumer %+v failed", c.configuration)
 		return
 	}
+	return
+}
+
+// ConsumeOptions represents consume options
+type ConsumeOptions struct {
+	Consumer    ConfigurationConsumer
+	WorkerCount int
+}
+
+// Consume consumes AMQP events
+func (a *AMQP) Consume(w *astikit.Worker, cs ...ConsumeOptions) (err error) {
+	// No options
+	if len(cs) == 0 {
+		return
+	}
+
+	// Loop through configurations
+	for idxConf, c := range cs {
+		// Loop through workers
+		for idxWorker := 0; idxWorker < int(math.Max(1, float64(c.WorkerCount))); idxWorker++ {
+			if err = a.AddConsumer(c.Consumer); err != nil {
+				err = errors.Wrapf(err, "main: adding consumer #%d for conf #%d %+v failed", idxWorker+1, idxConf+1, c)
+				return
+			}
+		}
+	}
+
+	// Execute in a task
+	w.NewTask().Do(func() {
+		// Wait for context to be done
+		<-w.Context().Done()
+
+		// Stop amqp
+		a.Stop()
+	})
 	return
 }

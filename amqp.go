@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/asticode/go-astikit"
 	"github.com/asticode/go-astilog"
-	astitime "github.com/asticode/go-astitools/time"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 )
@@ -124,7 +124,7 @@ func (a *AMQP) connect() (err error) {
 		// Sleep before retrying except the first time
 		if !first {
 			astilog.Debugf("astiamqp: sleeping %s before retrying to connect to the AMQP server", sleepBeforeRetryingToConnect)
-			if err = astitime.Sleep(a.ctx, sleepBeforeRetryingToConnect); err != nil {
+			if err = astikit.Sleep(a.ctx, sleepBeforeRetryingToConnect); err != nil {
 				astilog.Debugf("astiamqp: %s, cancelling connect", err)
 				return
 			}

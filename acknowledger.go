@@ -2,8 +2,8 @@ package astiamqp
 
 import (
 	"github.com/asticode/go-astilog"
-	"github.com/streadway/amqp"
 	"github.com/pkg/errors"
+	"github.com/streadway/amqp"
 )
 
 // Acknowledger represents an acknowledger

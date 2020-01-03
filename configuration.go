@@ -3,6 +3,7 @@ package astiamqp
 import (
 	"flag"
 
+	"github.com/asticode/go-astikit"
 	"github.com/streadway/amqp"
 )
 
@@ -24,6 +25,7 @@ var (
 // Configuration represents the AMQP configuration
 type Configuration struct {
 	Addr     string            `toml:"addr"`
+	Logger   astikit.StdLogger `toml:"-"`
 	Password string            `toml:"password"`
 	QOS      *ConfigurationQOS `toml:"qos"`
 	Username string            `toml:"username"`

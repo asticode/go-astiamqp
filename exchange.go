@@ -1,13 +1,13 @@
 package astiamqp
 
 import (
-	"github.com/asticode/go-astilog"
-	"github.com/pkg/errors"
+	"fmt"
+
 	"github.com/streadway/amqp"
 )
 
 func (a *AMQP) declareExchange(c ConfigurationExchange) (err error) {
-	astilog.Debugf("astiamqp: declaring exchange %s", c.Name)
+	a.l.Debugf("astiamqp: declaring exchange %s", c.Name)
 	if err = a.channel.ExchangeDeclare(
 		c.Name,                  // name
 		string(c.Type),          // type
@@ -17,7 +17,7 @@ func (a *AMQP) declareExchange(c ConfigurationExchange) (err error) {
 		c.NoWait,                // no-wait
 		amqp.Table(c.Arguments), // arguments
 	); err != nil {
-		err = errors.Wrapf(err, "astiamqp: declaring exchange %+v failed", c)
+		err = fmt.Errorf("astiamqp: declaring exchange %+v failed: %w", c, err)
 		return
 	}
 	return

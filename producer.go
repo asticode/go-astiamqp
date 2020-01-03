@@ -2,9 +2,9 @@ package astiamqp
 
 import (
 	"encoding/json"
+	"fmt"
 
-	"github.com/asticode/go-astilog"
-	"github.com/pkg/errors"
+	"github.com/asticode/go-astikit"
 	"github.com/streadway/amqp"
 )
 
@@ -12,6 +12,7 @@ import (
 type Producer struct {
 	channel       func() *amqp.Channel
 	configuration ConfigurationProducer
+	l             astikit.SeverityLogger
 }
 
 // AddProducer adds a producer
@@ -24,11 +25,12 @@ func (a *AMQP) AddProducer(c ConfigurationProducer) (p *Producer, err error) {
 	p = &Producer{
 		channel:       func() *amqp.Channel { return a.channel },
 		configuration: c,
+		l:             a.l,
 	}
 
 	// Setup producer
 	if err = a.setupProducer(p); err != nil {
-		err = errors.Wrapf(err, "astiamqp: setting up producer %+v failed", c)
+		err = fmt.Errorf("astiamqp: setting up producer %+v failed: %w", c, err)
 		return
 	}
 
@@ -40,7 +42,7 @@ func (a *AMQP) AddProducer(c ConfigurationProducer) (p *Producer, err error) {
 func (a *AMQP) setupProducer(p *Producer) (err error) {
 	// Declare exchange
 	if err = a.declareExchange(p.configuration.Exchange); err != nil {
-		err = errors.Wrapf(err, "astiamqp: declaring exchange %+v failed", p.configuration.Exchange)
+		err = fmt.Errorf("astiamqp: declaring exchange %+v failed: %w", p.configuration.Exchange, err)
 		return
 	}
 	return
@@ -51,20 +53,20 @@ func (p *Producer) Produce(msg interface{}, routingKey string) (err error) {
 	// Marshal msg
 	var b []byte
 	if b, err = json.Marshal(msg); err != nil {
-		err = errors.Wrapf(err, "astiamqp: marshaling msg %+v failed", msg)
+		err = fmt.Errorf("astiamqp: marshaling msg %+v failed: %w", msg, err)
 		return
 	}
 
 	// Publish message
 	if err = p.publishMessage(b, routingKey); err != nil {
-		err = errors.Wrapf(err, "astiamqp: publishing msg %+v for routing key %s failed", msg, routingKey)
+		err = fmt.Errorf("astiamqp: publishing msg %+v for routing key %s failed: %w", msg, routingKey, err)
 		return
 	}
 	return
 }
 
 func (p *Producer) publishMessage(msg []byte, routingKey string) (err error) {
-	astilog.Debugf("astiamqp: publishing msg %s to exchange %s for routing key %s", msg, p.configuration.Exchange.Name, routingKey)
+	p.l.Debugf("astiamqp: publishing msg %s to exchange %s for routing key %s", msg, p.configuration.Exchange.Name, routingKey)
 	if err = p.channel().Publish(
 		p.configuration.Exchange.Name, // exchange
 		routingKey,                    // routing key
@@ -75,7 +77,7 @@ func (p *Producer) publishMessage(msg []byte, routingKey string) (err error) {
 			Body:        msg,
 		},
 	); err != nil {
-		err = errors.Wrapf(err, "astiamqp: publishing msg %s to exchange %+v for routing key %s failed", msg, p.configuration.Exchange, routingKey)
+		err = fmt.Errorf("astiamqp: publishing msg %s to exchange %+v for routing key %s failed: %w", msg, p.configuration.Exchange, routingKey, err)
 		return
 	}
 	return

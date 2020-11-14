@@ -3,22 +3,18 @@ package astiamqp
 import (
 	"context"
 	"fmt"
-	"math"
 	"strconv"
-	"sync"
+	"sync/atomic"
 
-	"github.com/asticode/go-astikit"
 	"github.com/streadway/amqp"
 )
 
 // Consumer represents a Consumer
 type Consumer struct {
-	cancel             context.CancelFunc
-	ctx                context.Context
-	configuration      ConfigurationConsumer
-	handlingDeliveries bool
-	tag                string
-	wg                 *sync.WaitGroup
+	cancel        context.CancelFunc
+	ctx           context.Context
+	configuration ConfigurationConsumer
+	tag           string
 }
 
 // AddConsumer adds a consumer
@@ -28,13 +24,10 @@ func (a *AMQP) AddConsumer(c ConfigurationConsumer) (err error) {
 	defer a.mc.Unlock()
 
 	// Create consumer
-	a.consumerID++
 	var csm = &Consumer{
 		configuration: c,
-		tag:           strconv.Itoa(a.consumerID),
-		wg:            &sync.WaitGroup{},
+		tag:           strconv.Itoa(int(atomic.AddUint32(&a.consumerCounter, 1))),
 	}
-	csm.ctx, csm.cancel = context.WithCancel(a.ctx)
 
 	// Set up consumer
 	if err = a.setupConsumer(csm); err != nil {
@@ -48,14 +41,10 @@ func (a *AMQP) AddConsumer(c ConfigurationConsumer) (err error) {
 }
 
 func (a *AMQP) setupConsumer(c *Consumer) (err error) {
-	// Stop handling deliveries
-	if c.handlingDeliveries {
-		c.cancel()
-		c.wg.Wait()
+	// No channel
+	if a.channel == nil {
+		return
 	}
-
-	// Reset context
-	c.ctx, c.cancel = context.WithCancel(a.ctx)
 
 	// Declare exchange
 	if err = a.declareExchange(c.configuration.Exchange); err != nil {
@@ -82,19 +71,12 @@ func (a *AMQP) setupConsumer(c *Consumer) (err error) {
 		return
 	}
 
+	// Reset context
+	c.ctx, c.cancel = context.WithCancel(a.ctx)
+
 	// Handle deliveries
 	a.l.Debugf("astiamqp: handling deliveries of consumer %s on queue %s", c.tag, c.configuration.Queue.Name)
-	go func() {
-		// Handle waiting groups
-		c.handlingDeliveries = true
-		a.wg.Add(1)
-		c.wg.Add(1)
-		defer func() {
-			a.wg.Done()
-			c.wg.Done()
-		}()
-
-		// Loop
+	a.t.NewSubTask().Do(func() {
 		for {
 			select {
 			case d := <-deliveries:
@@ -109,8 +91,14 @@ func (a *AMQP) setupConsumer(c *Consumer) (err error) {
 				return
 			}
 		}
-	}()
+	})
 	return
+}
+
+func (c *Consumer) stop() {
+	if c.cancel != nil {
+		c.cancel()
+	}
 }
 
 func (a *AMQP) consume(c *Consumer) (deliveries <-chan amqp.Delivery, err error) {
@@ -127,40 +115,5 @@ func (a *AMQP) consume(c *Consumer) (deliveries <-chan amqp.Delivery, err error)
 		err = fmt.Errorf("astiamqp: consuming on consumer %+v failed: %w", c.configuration, err)
 		return
 	}
-	return
-}
-
-// ConsumeOptions represents consume options
-type ConsumeOptions struct {
-	Consumer    ConfigurationConsumer
-	WorkerCount int
-}
-
-// Consume consumes AMQP events
-func (a *AMQP) Consume(w *astikit.Worker, cs ...ConsumeOptions) (err error) {
-	// No options
-	if len(cs) == 0 {
-		return
-	}
-
-	// Loop through configurations
-	for idxConf, c := range cs {
-		// Loop through workers
-		for idxWorker := 0; idxWorker < int(math.Max(1, float64(c.WorkerCount))); idxWorker++ {
-			if err = a.AddConsumer(c.Consumer); err != nil {
-				err = fmt.Errorf("main: adding consumer #%d for conf #%d %+v failed: %w", idxWorker+1, idxConf+1, c, err)
-				return
-			}
-		}
-	}
-
-	// Execute in a task
-	w.NewTask().Do(func() {
-		// Wait for context to be done
-		<-w.Context().Done()
-
-		// Stop amqp
-		a.Stop()
-	})
 	return
 }

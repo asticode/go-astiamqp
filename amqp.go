@@ -17,75 +17,85 @@ const (
 
 // AMQP represents a client capable of sending/listening to AMQP queues
 type AMQP struct {
-	c          Configuration
-	cancel     context.CancelFunc
-	ctx        context.Context
-	channel    *amqp.Channel
-	connection *amqp.Connection
-	consumerID int
-	consumers  []*Consumer
-	l          astikit.SeverityLogger
-	mc, mp     *sync.Mutex
-	oc, os     *sync.Once
-	producers  []*Producer
-	wg         *sync.WaitGroup
+	c               Configuration
+	cancel          context.CancelFunc
+	ctx             context.Context
+	channel         *amqp.Channel
+	connection      *amqp.Connection
+	consumerCounter uint32
+	consumers       []*Consumer
+	l               astikit.SeverityLogger
+	mc              *sync.Mutex // Locks consumers
+	mp              *sync.Mutex // Locks producers
+	producers       []*Producer
+	t               *astikit.Task
 }
 
 // New creates a new AMQP instance based on a configuration
-func New(c Configuration) (a *AMQP) {
+func New(c Configuration, l astikit.StdLogger) (a *AMQP) {
 	a = &AMQP{
 		c:  c,
-		l:  astikit.AdaptStdLogger(c.Logger),
+		l:  astikit.AdaptStdLogger(l),
 		mc: &sync.Mutex{},
 		mp: &sync.Mutex{},
-		oc: &sync.Once{},
-		os: &sync.Once{},
-		wg: &sync.WaitGroup{},
 	}
 	return
 }
 
 // Close closes amqp properly
 func (a *AMQP) Close() error {
-	a.oc.Do(func() {
-		if a.channel != nil {
-			a.l.Debug("astiamqp: closing channel")
-			if err := a.channel.Close(); err != nil {
-				a.l.Error(fmt.Errorf("astiamqp: closing channel failed: %w", err))
-			}
+	// Close channel
+	if a.channel != nil {
+		a.l.Debug("astiamqp: closing channel")
+		if err := a.channel.Close(); err != nil {
+			a.l.Error(fmt.Errorf("astiamqp: closing channel failed: %w", err))
 		}
-		if a.connection != nil {
-			a.l.Debug("astiamqp: closing connection")
-			if err := a.connection.Close(); err != nil {
-				a.l.Error(fmt.Errorf("astiamqp: closing connection failed: %w", err))
-			}
+		a.channel = nil
+	}
+
+	// Close connection
+	if a.connection != nil {
+		a.l.Debug("astiamqp: closing connection")
+		if err := a.connection.Close(); err != nil {
+			a.l.Error(fmt.Errorf("astiamqp: closing connection failed: %w", err))
 		}
-	})
+		a.connection = nil
+	}
+
+	// Stop consumers
+	a.mc.Lock()
+	for _, c := range a.consumers {
+		c.stop()
+	}
+	a.mc.Unlock()
 	return nil
 }
 
 // Stop stops amqp
-// It will wait for all consumers to stop handling deliveries
 func (a *AMQP) Stop() {
 	a.l.Debug("astiamqp: stopping amqp")
-	a.os.Do(func() {
-		a.cancel()
-		a.l.Debug("astiamqp: waiting for all consumers to stop handling deliveries")
-		a.wg.Wait()
-		a.l.Debug("astiamqp: all consumers have stopped handling deliveries")
-	})
+	a.cancel()
 }
 
-// Init initializes amqp
-func (a *AMQP) Init(ctx context.Context) (err error) {
+// Start starts amqp
+func (a *AMQP) Start(w *astikit.Worker) {
 	// Set context
-	a.ctx, a.cancel = context.WithCancel(ctx)
+	a.ctx, a.cancel = context.WithCancel(w.Context())
 
-	// Reset
-	if err = a.reset(); err != nil {
-		err = fmt.Errorf("astiamqp: resetting failed: %w", err)
-		return
-	}
+	// Create task
+	a.t = w.NewTask()
+
+	// Execute in a task
+	a.t.Do(func() {
+		// Reset
+		if err := a.reset(); err != nil {
+			a.l.Error(fmt.Errorf("astiamqp: resetting failed: %w", err))
+			return
+		}
+
+		// Wait for context to be done
+		<-a.ctx.Done()
+	})
 	return
 }
 
@@ -99,8 +109,6 @@ func (a *AMQP) reset() (err error) {
 	// Handle errors
 	c := make(chan *amqp.Error)
 	go a.handleErrors(c)
-
-	// Notify close errors
 	a.connection.NotifyClose(c)
 
 	// Set up
@@ -182,7 +190,13 @@ func (a *AMQP) handleErrors(c chan *amqp.Error) {
 	for {
 		select {
 		case err := <-c:
+			// Log
 			a.l.Error(fmt.Errorf("astiamqp: close error: %w", err))
+
+			// Close
+			a.Close()
+
+			// Reset
 			a.reset()
 			return
 		case <-a.ctx.Done():

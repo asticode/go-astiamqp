@@ -109,7 +109,11 @@ func (a *AMQP) reset() (err error) {
 	// Handle errors
 	c := make(chan *amqp.Error)
 	go a.handleErrors(c)
-	a.connection.NotifyClose(c)
+	// We are listening to channel closes since when the connection closes it will still trigger
+	// this event
+	// Listening to both connection and channel closes panics since c is closed when connection
+	// is shutdown
+	a.channel.NotifyClose(c)
 
 	// Set up
 	if err = a.setup(); err != nil {
@@ -194,10 +198,14 @@ func (a *AMQP) handleErrors(c chan *amqp.Error) {
 			a.l.Error(fmt.Errorf("astiamqp: close error: %w", err))
 
 			// Close
-			a.Close()
+			if err := a.Close(); err != nil {
+				a.l.Error(fmt.Errorf("astiamqp: closing failed: %w", err))
+			}
 
 			// Reset
-			a.reset()
+			if err := a.reset(); err != nil {
+				a.l.Error(fmt.Errorf("astiamqp: resetting failed: %w", err))
+			}
 			return
 		case <-a.ctx.Done():
 			return

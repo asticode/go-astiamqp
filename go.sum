@@ -1,4 +1,4 @@
-github.com/asticode/go-astikit v0.11.0 h1:ihzBFn5JjKIk1tYrY1bbmRPcWzW5G4l71QsCjQ0tBgM=
-github.com/asticode/go-astikit v0.11.0/go.mod h1:h4ly7idim1tNhaVkdVBeXQZEE3L0xblP7fCWbgwipF0=
+github.com/asticode/go-astikit v0.12.0 h1:VHKWuXbmE0Bk5fjqqz+xsXvySaKI+wshIBRP+XwNN8s=
+github.com/asticode/go-astikit v0.12.0/go.mod h1:h4ly7idim1tNhaVkdVBeXQZEE3L0xblP7fCWbgwipF0=
 github.com/streadway/amqp v1.0.0 h1:kuuDrUJFZL1QYL9hUNuCxNObNzB0bV/ZG5jV3RWAQgo=
 github.com/streadway/amqp v1.0.0/go.mod h1:AZpEONHx3DKn8O/DFsRAY58/XVQiIPMTMB1SddzLXVw=

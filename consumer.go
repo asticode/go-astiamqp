@@ -82,8 +82,9 @@ func (a *AMQP) setupConsumer(c *Consumer) (err error) {
 			case d := <-deliveries:
 				if d.DeliveryTag > 0 {
 					a.l.Debugf("astiamqp: received body %s on routing key %s, queue %s and exchange %s", string(d.Body), d.RoutingKey, c.configuration.Queue.Name, c.configuration.Exchange.Name)
-					if err = c.configuration.Handler(d.Body, d.RoutingKey, newAcknowledger(d.Acknowledger, d.DeliveryTag, a.l)); err != nil {
-						a.l.Error(fmt.Errorf("astiamqp: handling body %s on routing key %s, queue %s and exchange %s: %w", string(d.Body), d.RoutingKey, c.configuration.Queue.Name, c.configuration.Exchange.Name, err))
+					var ctx context.Context
+					if ctx, err = c.configuration.Handler(d.Body, d.RoutingKey, newAcknowledger(d.Acknowledger, d.DeliveryTag, a.l)); err != nil {
+						a.l.ErrorC(ctx, fmt.Errorf("astiamqp: handling body %s on routing key %s, queue %s and exchange %s failed: %w", string(d.Body), d.RoutingKey, c.configuration.Queue.Name, c.configuration.Exchange.Name, err))
 					}
 				}
 			case <-c.ctx.Done():

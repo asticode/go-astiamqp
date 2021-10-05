@@ -1,6 +1,7 @@
 package astiamqp
 
 import (
+	"context"
 	"flag"
 
 	"github.com/streadway/amqp"
@@ -86,7 +87,7 @@ type ConfigurationConsumer struct {
 }
 
 // Handler handles a message
-type Handler func(msg []byte, routingKey string, a Acknowledger) error
+type Handler func(msg []byte, routingKey string, a Acknowledger) (context.Context, error)
 
 // ConfigurationProducer represents a producer configuration
 type ConfigurationProducer struct {

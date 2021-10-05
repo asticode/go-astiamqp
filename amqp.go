@@ -24,7 +24,7 @@ type AMQP struct {
 	connection      *amqp.Connection
 	consumerCounter uint32
 	consumers       []*Consumer
-	l               astikit.SeverityLogger
+	l               astikit.CompleteLogger
 	mc              *sync.Mutex // Locks consumers
 	mp              *sync.Mutex // Locks producers
 	producers       []*Producer
@@ -96,7 +96,6 @@ func (a *AMQP) Start(w *astikit.Worker) {
 		// Wait for context to be done
 		<-a.ctx.Done()
 	})
-	return
 }
 
 func (a *AMQP) reset() (err error) {

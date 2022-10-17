@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/asticode/go-astikit"
@@ -28,6 +29,7 @@ type AMQP struct {
 	mc              *sync.Mutex // Locks consumers
 	mp              *sync.Mutex // Locks producers
 	producers       []*Producer
+	started         uint32
 	t               *astikit.Task
 }
 
@@ -74,11 +76,18 @@ func (a *AMQP) Close() error {
 // Stop stops amqp
 func (a *AMQP) Stop() {
 	a.l.Debug("astiamqp: stopping amqp")
-	a.cancel()
+	if a.cancel != nil {
+		a.cancel()
+	}
 }
 
 // Start starts amqp
 func (a *AMQP) Start(w *astikit.Worker) {
+	// Already started
+	if atomic.CompareAndSwapUint32(&a.started, 0, 1) {
+		return
+	}
+
 	// Set context
 	a.ctx, a.cancel = context.WithCancel(w.Context())
 

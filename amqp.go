@@ -84,7 +84,7 @@ func (a *AMQP) Stop() {
 // Start starts amqp
 func (a *AMQP) Start(w *astikit.Worker) {
 	// Already started
-	if atomic.CompareAndSwapUint32(&a.started, 0, 1) {
+	if !atomic.CompareAndSwapUint32(&a.started, 0, 1) {
 		return
 	}
 

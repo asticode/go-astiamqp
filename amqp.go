@@ -96,6 +96,9 @@ func (a *AMQP) Start(w *astikit.Worker) {
 
 	// Execute in a task
 	a.t.Do(func() {
+		// Make sure to update started once everything is done
+		defer func() { atomic.StoreUint32(&a.started, 0) }()
+
 		// Reset
 		if err := a.reset(); err != nil {
 			a.l.Error(fmt.Errorf("astiamqp: resetting failed: %w", err))
